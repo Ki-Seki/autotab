@@ -8,6 +8,8 @@ Welcome to Auto Tabular Completion. It automatically fill in missing values in t
 
 ## Usage
 
+Check [![](https://img.shields.io/badge/-%F0%9F%A4%97%20HuggingFace%20Space-orange?style=flat)](https://huggingface.co/spaces/Ki-Seki/AutoTab) for direct usage.
+
 Check [demo1.ipynb](demo1.ipynb) and [demo2.ipynb](demo2.ipynb) for more details.
 
 > [!Note]
