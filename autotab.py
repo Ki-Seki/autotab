@@ -114,5 +114,6 @@ class AutoTab:
                 data.at[i, field_name] = extracted_fields.get(field_name, "")
             if i % self.save_every == 0:
                 data.to_excel(self.out_file_path, index=False)
+        self.data = data
         data.to_excel(self.out_file_path, index=False)
         print(f"Results saved to {self.out_file_path}")
