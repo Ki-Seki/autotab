@@ -1,126 +1,118 @@
-import argparse
-import concurrent.futures
-import os
 import re
 
 import openai
 import pandas as pd
+from tqdm import tqdm
 
 
-def load_excel(file_path):
-    """Load the Excel file and identify input and output columns."""
-    df = pd.read_excel(file_path)
-    input_columns = [col for col in df.columns if col.startswith("[Input]")]
-    output_columns = [col for col in df.columns if col.startswith("[Output]")]
-    return df, input_columns, output_columns
+class AutoTab:
+    def __init__(
+        self,
+        in_file_path: str,
+        out_file_path: str,
+        max_examples: int,
+        model_name: str,
+        api_key: str,
+        base_url: str,
+        generation_config: dict,
+        save_every: int,
+        instruction: str,
+    ):
+        self.in_file_path = in_file_path
+        self.out_file_path = out_file_path
+        self.max_examples = max_examples
+        self.model_name = model_name
+        self.api_key = api_key
+        self.base_url = base_url
+        self.generation_config = generation_config
+        self.save_every = save_every
+        self.instruction = instruction
 
+    # ─── IO ───────────────────────────────────────────────────────────────
 
-def derive_in_context(data, input_columns, output_columns):
-    """Derive in-context learning data from the given DataFrame."""
-    n = len(data.dropna(subset=output_columns))
-    in_context = ""
-    for i in range(n):
-        in_context += "".join(
-            f"<{col.replace('[Input] ', '')}>{data[col].iloc[i]}</{col.replace('[Input] ', '')}>\n"
-            for col in input_columns
-        ) + "".join(
-            f"<{col.replace('[Output] ', '')}>{data[col].iloc[i]}</{col.replace('[Output] ', '')}>\n"
-            for col in output_columns
+    def load_excel(self) -> tuple[pd.DataFrame, list, list]:
+        """Load the Excel file and identify input and output fields."""
+        df = pd.read_excel(self.in_file_path)
+        input_fields = [col for col in df.columns if col.startswith("[Input] ")]
+        output_fields = [col for col in df.columns if col.startswith("[Output] ")]
+        return df, input_fields, output_fields
+
+    # ─── LLM ──────────────────────────────────────────────────────────────
+
+    def openai_request(self, query: str) -> str:
+        """Make a request to an OpenAI-format API."""
+        client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+        response = client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": query}],
+            **self.generation_config,
         )
-    return in_context, n
+        str_response = response.choices[0].message.content.strip()
+        return str_response
 
+    # ─── In-Context Learning ──────────────────────────────────────────────
 
-def predict_output(in_context, input_data, input_columns, api_key, model, base_url):
-    """Predict the output values for the given input data using the OpenAI API."""
-    client = openai.OpenAI(api_key=api_key, base_url=base_url)
-    query = in_context + "".join(
-        f"<{col.replace('[Input] ', '')}>{input_data[col]}</{col.replace('[Input] ', '')}>\n"
-        for col in input_columns
-    )
-    response = client.chat.completions.create(
-        model=model, messages=[{"role": "user", "content": query}], max_tokens=64, n=1
-    )
-    predictions = response.choices[0].message.content.strip()
-    return predictions
+    def derive_incontext(
+        self, data: pd.DataFrame, input_columns: list[str], output_columns: list[str]
+    ) -> str:
+        """Derive the in-context prompt with angle brackets."""
+        n = min(self.max_examples, len(data.dropna(subset=output_columns)))
+        in_context = ""
+        for i in range(n):
+            in_context += "".join(
+                f"<{col.replace('[Input] ', '')}>{data[col].iloc[i]}</{col.replace('[Input] ', '')}>\n"
+                for col in input_columns
+            )
+            in_context += "".join(
+                f"<{col.replace('[Output] ', '')}>{data[col].iloc[i]}</{col.replace('[Output] ', '')}>\n"
+                for col in output_columns
+            )
+            in_context += "\n"
+        self.in_context = in_context
+        return in_context
 
+    def predict_output(
+        self, in_context: str, input_data: pd.DataFrame, input_fields: str
+    ):
+        """Predict the output values for the given input data using the API."""
+        query = (
+            self.instruction
+            + "\n\n"
+            + in_context
+            + "".join(
+                f"<{col.replace('[Input] ', '')}>{input_data[col]}</{col.replace('[Input] ', '')}>\n"
+                for col in input_fields
+            )
+        )
+        self.query_example = query
+        output = self.openai_request(query)
+        return output
 
-def extract_fields(prediction, output_columns):
-    """Extract fields from the prediction text based on output columns."""
-    extracted = {}
-    for col in output_columns:
-        tag = col.replace("[Output] ", "")
-        match = re.search(f"<{tag}>(.*?)</{tag}>", prediction)
-        extracted[tag] = match.group(1) if match else ""
-    return extracted
-
-
-def process_file(file_path, api_key, model, base_url):
-    """Process the entire Excel file and predict output values for missing entries."""
-    df, input_columns, output_columns = load_excel(file_path)
-    in_context, n = derive_in_context(df, input_columns, output_columns)
-
-    results = [None] * (len(df) - n)  # Pre-allocate a list for results
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(
-                predict_output,
-                in_context,
-                df.iloc[i],
-                input_columns,
-                api_key,
-                model,
-                base_url,
-            ): i
-            - n
-            for i in range(n, len(df))
-        }
-        for future in concurrent.futures.as_completed(futures):
-            idx = futures[future]
-            try:
-                prediction = future.result()
-                extracted_fields = extract_fields(prediction, output_columns)
-                results[idx] = extracted_fields
-            except Exception as e:
-                results[idx] = {
-                    col.replace("[Output] ", ""): f"Error: {e}"
-                    for col in output_columns
-                }
-
-    # Assign results to the DataFrame
-    for i, extracted_fields in enumerate(results, start=n):
+    def extract_fields(
+        self, response: str, output_columns: list[str]
+    ) -> dict[str, str]:
+        """Extract fields from the response text based on output columns."""
+        extracted = {}
         for col in output_columns:
-            tag = col.replace("[Output] ", "")
-            df.at[i, col] = extracted_fields.get(tag, "")
+            field = col.replace("[Output] ", "")
+            match = re.search(f"<{field}>(.*?)</{field}>", response)
+            extracted[col] = match.group(1) if match else ""
+        return extracted
 
-    # Save the updated DataFrame to a new Excel file
-    output_file_path = os.path.splitext(file_path)[0] + "_output.xlsx"
-    df.to_excel(output_file_path, index=False)
-    print(f"Results saved to {output_file_path}")
+    # ─── Engine ───────────────────────────────────────────────────────────
 
+    def run(self):
+        data, input_fields, output_fields = self.load_excel()
+        in_context = self.derive_incontext(data, input_fields, output_fields)
 
-def main():
-    """Main function to parse arguments and execute the processing."""
-    parser = argparse.ArgumentParser(
-        description="Auto Tabular Completion with In-Context Learning"
-    )
-    parser.add_argument("--file", required=True, help="Path to the Excel file")
-    parser.add_argument("--api_key", required=True, help="OpenAI API key")
-    parser.add_argument(
-        "--base_url", required=False, help="OpenAI API base URL", default=None
-    )
-    parser.add_argument(
-        "--model",
-        required=False,
-        help="OpenAI model to use",
-        default="Qwen/Qwen2-7B-Instruct",
-    )
+        num_existed_examples = len(data.dropna(subset=output_fields))
 
-    args = parser.parse_args(
-        "--file data/sample_nlp.xlsx --api_key sk-exhahhjfqyanmwewndukcqtrpegfdbwszkjucvcpajdufiah --base_url https://api.siliconflow.cn/v1".split()
-    )
-
-    process_file(args.file, args.api_key, args.model, args.base_url)
-
-
-if __name__ == "__main__":
-    main()
+        for i in tqdm(range(num_existed_examples, len(data))):
+            prediction = self.predict_output(in_context, data.iloc[i], input_fields)
+            extracted_fields = self.extract_fields(prediction, output_fields)
+            for field_name in output_fields:
+                data.at[i, field_name] = extracted_fields.get(field_name, "")
+            if i % self.save_every == 0:
+                data.to_excel(self.out_file_path, index=False)
+        data.to_excel(self.out_file_path, index=False)
+        print(f"Results saved to {self.out_file_path}")
