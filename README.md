@@ -1,21 +1,17 @@
 # Auto Tabular Completion with In-Context Learning
 
-## Introduction
-
 Welcome to Auto Tabular Completion. It automatically fill in missing values in tabular data using in-context learning techniques. This tool leverages the capabilities of LLMs to predict output values based on given input data.
+
+
 
 ![Demo1](./assets/demo1.png)
 
-## Quick Start
+## Usage
 
-Check [demo1.ipynb](demo1.ipynb) and [demo2.ipynb](demo2.ipynb) for usage.
+Check [demo1.ipynb](demo1.ipynb) and [demo2.ipynb](demo2.ipynb) for more details.
 
 > [!Note]
-> Give it a try with my personal key in the two demo notebooks (valid until 2024-11-01).
-
-## API
-
-[Silicon Flow](https://cloud.siliconflow.cn/) provides free API.
+> **Give it a try with my personal key in the two demo notebooks (valid until 2024-11-01).** [Silicon Flow](https://cloud.siliconflow.cn/) provides free API. You can sign up and get your own API key.
 
 ## Input Format
 
