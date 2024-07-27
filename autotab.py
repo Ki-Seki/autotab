@@ -1,8 +1,10 @@
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import openai
 import pandas as pd
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 from tqdm import tqdm
 
 
@@ -42,8 +44,10 @@ class AutoTab:
 
     # ─── LLM ──────────────────────────────────────────────────────────────
 
+    @retry(wait=wait_random_exponential(min=20, max=60), stop=stop_after_attempt(6))
     def openai_request(self, query: str) -> str:
         """Make a request to an OpenAI-format API."""
+        time.sleep(self.request_interval)
         client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
         response = client.chat.completions.create(
             model=self.model_name,
@@ -103,16 +107,23 @@ class AutoTab:
 
     # ─── Engine ───────────────────────────────────────────────────────────
 
+    def _predict_and_extract(self, i: int) -> dict[str, str]:
+        """Helper function to predict and extract fields for a single row."""
+        prediction = self.predict_output(
+            self.in_context, self.data.iloc[i], self.input_fields
+        )
+        extracted_fields = self.extract_fields(prediction, self.output_fields)
+        return extracted_fields
+
     def batch_prediction(self, start_index: int, end_index: int):
-        """Process a batch of predictions."""
-        for i in range(start_index, end_index):
-            prediction = self.predict_output(
-                self.in_context, self.data.iloc[i], self.input_fields
+        """Process a batch of predictions asynchronously."""
+        with ThreadPoolExecutor() as executor:
+            results = list(
+                executor.map(self._predict_and_extract, range(start_index, end_index))
             )
-            extracted_fields = self.extract_fields(prediction, self.output_fields)
+        for i, extracted_fields in zip(range(start_index, end_index), results):
             for field_name in self.output_fields:
                 self.data.at[i, field_name] = extracted_fields.get(field_name, "")
-            time.sleep(self.request_interval)
 
     def run(self):
         self.data, self.input_fields, self.output_fields = self.load_excel()
@@ -123,12 +134,14 @@ class AutoTab:
         self.num_data = len(self.data)
         self.num_examples = len(self.data.dropna(subset=self.output_fields))
 
-        for start_index in tqdm(
-            range(self.num_examples, self.num_data, self.save_every),
-            description="Processing batches",
-        ):
-            end_index = min(start_index + self.save_every, self.num_data)
-            self.batch_prediction(start_index, end_index)
+        tqdm_bar = tqdm(range(self.num_examples, self.num_data, self.save_every))
+        for start in tqdm_bar:
+            tqdm_bar.update(start)
+            end = min(start + self.save_every, self.num_data)
+            try:
+                self.batch_prediction(start, end)
+            except Exception as e:
+                print(e)
             self.data.to_excel(self.out_file_path, index=False)
         self.data.to_excel(self.out_file_path, index=False)
         print(f"Results saved to {self.out_file_path}")

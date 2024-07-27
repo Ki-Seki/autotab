@@ -51,7 +51,7 @@ inputs = [
         value='{"temperature": 0, "max_tokens": 128}',
         label="Generation Config in Dict",
     ),
-    gr.Slider(value=0.01, minimum=0, maximum=10, label="Request Interval in Seconds"),
+    gr.Slider(value=0.1, minimum=0, maximum=10, label="Request Interval in Seconds"),
     gr.Slider(value=100, minimum=1, maximum=1000, step=1, label="Save Every N Steps"),
     gr.Textbox(
         value="sk-exhahhjfqyanmwewndukcqtrpegfdbwszkjucvcpajdufiah", label="API Key"

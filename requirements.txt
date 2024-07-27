@@ -3,3 +3,4 @@ openai
 argparse
 openpyxl
 gradio
+tenacity
