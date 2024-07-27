@@ -134,9 +134,9 @@ class AutoTab:
         self.num_data = len(self.data)
         self.num_examples = len(self.data.dropna(subset=self.output_fields))
 
-        tqdm_bar = tqdm(range(self.num_examples, self.num_data, self.save_every))
-        for start in tqdm_bar:
-            tqdm_bar.update(start)
+        tqdm_bar = tqdm(total=self.num_data - self.num_examples, leave=False)
+        for start in range(self.num_examples, self.num_data, self.save_every):
+            tqdm_bar.update(min(self.save_every, self.num_data - start))
             end = min(start + self.save_every, self.num_data)
             try:
                 self.batch_prediction(start, end)
