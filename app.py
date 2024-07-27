@@ -1,28 +1,25 @@
-import gradio as gr
-
-from autotab import AutoTab
 import json
 import time
+
+import gradio as gr
 import pandas as pd
 
-
-def convert_seconds_to_time(seconds):
-    return time.strftime("%H:%M:%S", time.gmtime(seconds))
+from autotab import AutoTab
 
 
 def auto_tabulator_completion(
-    in_file,
-    instruction,
-    max_examples,
-    model_name,
-    generation_config,
-    save_every,
-    api_key,
-    base_url,
+    in_file_path: str,
+    instruction: str,
+    max_examples: int,
+    model_name: str,
+    generation_config: dict,
+    save_every: int,
+    api_key: str,
+    base_url: str,
 ) -> tuple[str, str, str, pd.DataFrame]:
     output_file_name = "ouput.xlsx"
     autotab = AutoTab(
-        in_file_path=in_file.name,
+        in_file_path=in_file_path,
         instruction=instruction,
         out_file_path=output_file_name,
         max_examples=max_examples,
