@@ -10,23 +10,26 @@ class AutoTab:
         self,
         in_file_path: str,
         out_file_path: str,
+        instruction: str,
         max_examples: int,
         model_name: str,
+        generation_config: dict,
+        request_interval: float,
+        save_every: int,
         api_key: str,
         base_url: str,
-        generation_config: dict,
-        save_every: int,
-        instruction: str,
+
     ):
         self.in_file_path = in_file_path
         self.out_file_path = out_file_path
+        self.instruction = instruction
         self.max_examples = max_examples
         self.model_name = model_name
+        self.generation_config = generation_config
+        self.request_interval = request_interval
+        self.save_every = save_every
         self.api_key = api_key
         self.base_url = base_url
-        self.generation_config = generation_config
-        self.save_every = save_every
-        self.instruction = instruction
 
     # ─── IO ───────────────────────────────────────────────────────────────
 
