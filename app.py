@@ -13,6 +13,7 @@ def auto_tabulator_completion(
     max_examples: int,
     model_name: str,
     generation_config: dict,
+    request_interval: float,
     save_every: int,
     api_key: str,
     base_url: str,
@@ -20,14 +21,15 @@ def auto_tabulator_completion(
     output_file_name = "ouput.xlsx"
     autotab = AutoTab(
         in_file_path=in_file_path,
-        instruction=instruction,
         out_file_path=output_file_name,
+        instruction=instruction,
         max_examples=max_examples,
         model_name=model_name,
+        generation_config=json.loads(generation_config),
+        request_interval=request_interval,
+        save_every=save_every,
         api_key=api_key,
         base_url=base_url,
-        generation_config=json.loads(generation_config),
-        save_every=save_every,
     )
     start = time.time()
     autotab.run()
@@ -49,6 +51,7 @@ inputs = [
         value='{"temperature": 0, "max_tokens": 128}',
         label="Generation Config in Dict",
     ),
+    gr.Slider(value=0.01, minimum=0, maximum=10, label="Request Interval in Seconds"),
     gr.Slider(value=100, minimum=1, maximum=1000, step=1, label="Save Every N Steps"),
     gr.Textbox(
         value="sk-exhahhjfqyanmwewndukcqtrpegfdbwszkjucvcpajdufiah", label="API Key"

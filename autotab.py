@@ -1,4 +1,5 @@
 import re
+import time
 
 import openai
 import pandas as pd
@@ -18,7 +19,6 @@ class AutoTab:
         save_every: int,
         api_key: str,
         base_url: str,
-
     ):
         self.in_file_path = in_file_path
         self.out_file_path = out_file_path
@@ -71,7 +71,6 @@ class AutoTab:
                 for col in output_columns
             )
             in_context += "\n"
-        self.in_context = in_context
         return in_context
 
     def predict_output(
@@ -104,19 +103,32 @@ class AutoTab:
 
     # ─── Engine ───────────────────────────────────────────────────────────
 
+    def batch_prediction(self, start_index: int, end_index: int):
+        """Process a batch of predictions."""
+        for i in range(start_index, end_index):
+            prediction = self.predict_output(
+                self.in_context, self.data.iloc[i], self.input_fields
+            )
+            extracted_fields = self.extract_fields(prediction, self.output_fields)
+            for field_name in self.output_fields:
+                self.data.at[i, field_name] = extracted_fields.get(field_name, "")
+            time.sleep(self.request_interval)
+
     def run(self):
-        data, input_fields, output_fields = self.load_excel()
-        in_context = self.derive_incontext(data, input_fields, output_fields)
+        self.data, self.input_fields, self.output_fields = self.load_excel()
+        self.in_context = self.derive_incontext(
+            self.data, self.input_fields, self.output_fields
+        )
 
-        num_existed_examples = len(data.dropna(subset=output_fields))
+        self.num_data = len(self.data)
+        self.num_examples = len(self.data.dropna(subset=self.output_fields))
 
-        for i in tqdm(range(num_existed_examples, len(data))):
-            prediction = self.predict_output(in_context, data.iloc[i], input_fields)
-            extracted_fields = self.extract_fields(prediction, output_fields)
-            for field_name in output_fields:
-                data.at[i, field_name] = extracted_fields.get(field_name, "")
-            if i % self.save_every == 0:
-                data.to_excel(self.out_file_path, index=False)
-        self.data = data
-        data.to_excel(self.out_file_path, index=False)
+        for start_index in tqdm(
+            range(self.num_examples, self.num_data, self.save_every),
+            description="Processing batches",
+        ):
+            end_index = min(start_index + self.save_every, self.num_data)
+            self.batch_prediction(start_index, end_index)
+            self.data.to_excel(self.out_file_path, index=False)
+        self.data.to_excel(self.out_file_path, index=False)
         print(f"Results saved to {self.out_file_path}")
