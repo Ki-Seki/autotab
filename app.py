@@ -15,7 +15,7 @@ def auto_tabulator_completion(
     generation_config: dict,
     request_interval: float,
     save_every: int,
-    api_key: str,
+    str_api_keys: str,
     base_url: str,
 ) -> tuple[str, str, str, pd.DataFrame]:
     output_file_name = "ouput.xlsx"
@@ -28,7 +28,7 @@ def auto_tabulator_completion(
         generation_config=json.loads(generation_config),
         request_interval=request_interval,
         save_every=save_every,
-        api_key=api_key,
+        api_keys=str_api_keys.split(),
         base_url=base_url,
     )
     start = time.time()
@@ -54,7 +54,8 @@ inputs = [
     gr.Slider(value=0.1, minimum=0, maximum=10, label="Request Interval in Seconds"),
     gr.Slider(value=100, minimum=1, maximum=1000, step=1, label="Save Every N Steps"),
     gr.Textbox(
-        value="sk-exhahhjfqyanmwewndukcqtrpegfdbwszkjucvcpajdufiah", label="API Key"
+        value="sk-exhahhjfqyanmwewndukcqtrpegfdbwszkjucvcpajdufiah",
+        label="API Key(s). One per line.",
     ),
     gr.Textbox(value="https://public-beta-api.siliconflow.cn/v1", label="Base URL"),
 ]

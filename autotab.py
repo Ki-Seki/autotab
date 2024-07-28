@@ -19,7 +19,7 @@ class AutoTab:
         generation_config: dict,
         request_interval: float,
         save_every: int,
-        api_key: str,
+        api_keys: list[str],
         base_url: str,
     ):
         self.in_file_path = in_file_path
@@ -30,8 +30,9 @@ class AutoTab:
         self.generation_config = generation_config
         self.request_interval = request_interval
         self.save_every = save_every
-        self.api_key = api_key
+        self.api_keys = api_keys
         self.base_url = base_url
+        self.request_count = 0
 
     # ─── IO ───────────────────────────────────────────────────────────────
 
@@ -47,8 +48,15 @@ class AutoTab:
     @retry(wait=wait_random_exponential(min=20, max=60), stop=stop_after_attempt(6))
     def openai_request(self, query: str) -> str:
         """Make a request to an OpenAI-format API."""
+
+        # Wait for the request interval
         time.sleep(self.request_interval)
-        client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+
+        # Increment the request count
+        api_key = self.api_keys[self.request_count % len(self.api_keys)]
+        self.request_count += 1
+
+        client = openai.OpenAI(api_key=api_key, base_url=self.base_url)
         response = client.chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": query}],
