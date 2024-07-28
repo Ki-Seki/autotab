@@ -18,7 +18,7 @@ def auto_tabulator_completion(
     str_api_keys: str,
     base_url: str,
 ) -> tuple[str, str, str, pd.DataFrame]:
-    output_file_name = "ouput.xlsx"
+    output_file_name = f"output_{time.strftime('%Y%m%d%H%M%S')}.xlsx"
     autotab = AutoTab(
         in_file_path=in_file_path,
         out_file_path=output_file_name,
@@ -33,9 +33,18 @@ def auto_tabulator_completion(
     )
     start = time.time()
     autotab.run()
-    time_taken = time.strftime("%H:%M:%S", time.gmtime(time.time() - start))
+    time_taken = time.time() - start
 
-    return time_taken, output_file_name, autotab.query_example, autotab.data[:15]
+    report = f"Total data points: {autotab.num_data}\n" + \
+            f"Total missing (before): {autotab.num_missing}\n" + \
+            f"Total missing (after): {autotab.failed_count}\n" + \
+            f"Total queries made: {autotab.request_count}\n" + \
+            f"Time taken: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start))}\n" + \
+            f"Prediction per second: {autotab.num_missing / time_taken:.2f}\n" + \
+            f"Query per second: {autotab.request_count / time_taken:.2f}"
+
+    query_example = autotab.query_example if autotab.request_count > 0 else "No queries made."
+    return report, output_file_name, query_example, autotab.data[:15]
 
 
 # Gradio interface
@@ -45,7 +54,7 @@ inputs = [
         value="You are a helpful assistant. Help me finish the task.",
         label="Instruction",
     ),
-    gr.Slider(value=5, minimum=1, maximum=50, step=1, label="Max Examples"),
+    gr.Slider(value=4, minimum=1, maximum=50, step=1, label="Max Examples"),
     gr.Textbox(value="Qwen/Qwen2-7B-Instruct", label="Model Name"),
     gr.Textbox(
         value='{"temperature": 0, "max_tokens": 128}',
@@ -61,7 +70,7 @@ inputs = [
 ]
 
 outputs = [
-    gr.Textbox(label="Time Taken"),
+    gr.Textbox(label="Report"),
     gr.File(label="Output Excel File"),
     gr.Textbox(label="Query Example"),
     gr.Dataframe(label="First 15 rows."),
