@@ -81,5 +81,5 @@ gr.Interface(
     inputs=inputs,
     outputs=outputs,
     title="Auto Tabulator Completion",
-    description="Automatically complete missing output values in tabular data based on in-context learning.",
+    description="Automatically complete missing output values in tabular data based on in-context learning. Check https://github.com/Ki-Seki/autotab.",
 ).launch()
