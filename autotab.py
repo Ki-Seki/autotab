@@ -142,12 +142,12 @@ class AutoTab:
     def run(self):
         tqdm_bar = tqdm(total=self.num_data, leave=False)
         for start in range(0, self.num_data, self.save_every):
-            tqdm_bar.update(min(self.save_every, self.num_data - start))
             end = min(start + self.save_every, self.num_data)
             try:
                 self.batch_prediction(start, end)
             except Exception as e:
                 print(e)
             self.data.to_excel(self.out_file_path, index=False)
+            tqdm_bar.update(min(self.save_every, self.num_data - start))
         self.data.to_excel(self.out_file_path, index=False)
         print(f"Results saved to {self.out_file_path}")
