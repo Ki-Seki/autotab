@@ -4,7 +4,7 @@
 
 Welcome to Auto Tabular Completion. It automatically fill in missing values in tabular data using in-context learning techniques. This tool leverages the capabilities of LLMs to predict output values based on given input data.
 
-![Demo1](./assets/demo1.png)
+![Demo](./assets/demo.png)
 
 ## Usage
 
