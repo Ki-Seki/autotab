@@ -18,3 +18,9 @@ Check [![](https://img.shields.io/badge/-%F0%9F%A4%97%20HuggingFace%20Space-oran
 ## Input Format
 
 Your Excel file should contain columns prefixed with `[Input] ` for input variables and `[Output] ` for known or expected output values. Any columns not following this naming convention will be ignored during the prediction process.
+
+## TODOs
+
+- **Use asyncio and ClientSession**: Refactor the code to use `asyncio` and `ClientSession` for asynchronous processing instead of using `ThreadPoolExecutor`. This will improve efficiency and scalability for handling API requests and data processing.
+
+- **Save Data to SQLite Table**: Update the code to save results into a SQLite database instead of an Excel file. This will involve creating a SQLite table and implementing the necessary functions to insert data into it.
